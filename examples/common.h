@@ -15,7 +15,7 @@
 
 struct gpt_params {
     int32_t seed          = -1;   // RNG seed
-    int32_t n_threads     = std::min(4, (int32_t) std::thread::hardware_concurrency());
+    int32_t n_threads     = std::min(10, (int32_t) std::thread::hardware_concurrency());
     int32_t n_predict     = 128;  // new tokens to predict
     int32_t repeat_last_n = 64;   // last n tokens to penalize
     int32_t n_parts       = -1;   // amount of model parts (-1 = determine from model dimensions)
@@ -29,8 +29,16 @@ struct gpt_params {
     float   temp  = 0.80f;
     float   repeat_penalty  = 1.10f;
 
-    std::string model  = "models/lamma-7B/ggml-model.bin"; // model path
-    std::string prompt = "";
+    std::string model  = "C:\\Users\\JosStorer\\_S\\CodeProjects\\ThirdParty\\llama.cpp\\models\\ggml-model-q4_0.bin"; // model path
+    std::string prompt = "\
+Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\
+\n\
+> Hello, who are you?\n\
+I am an AI assistant. How can I help you today?\n\
+\n\
+> 没什么\n\
+好的, 如果有什么需要, 随时告诉我\n\
+";
     std::string input_prefix = ""; // string to prefix user inputs with
 
 
@@ -38,13 +46,13 @@ struct gpt_params {
 
     bool memory_f16        = true;  // use f16 instead of f32 for memory kv
     bool random_prompt     = false; // do not randomize prompt if none provided
-    bool use_color         = false; // use color to distinguish generations and inputs
-    bool interactive       = false; // interactive mode
+    bool use_color         = true; // use color to distinguish generations and inputs
+    bool interactive       = true; // interactive mode
 
     bool embedding         = false; // get only sentence embedding
     bool interactive_start = false; // wait for user input immediately
 
-    bool instruct          = false; // instruction mode (used for Alpaca models)
+    bool instruct          = true; // instruction mode (used for Alpaca models)
     bool ignore_eos        = false; // do not stop generating after eos
     bool perplexity        = false; // compute perplexity over the prompt
     bool use_mlock         = false; // use mlock to keep model in memory

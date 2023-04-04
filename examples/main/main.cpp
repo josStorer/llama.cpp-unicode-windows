@@ -10,6 +10,9 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <fcntl.h>
+#include <io.h>
+#include <codecvt>
 
 #if defined (__unix__) || (defined (__APPLE__) && defined (__MACH__))
 #include <signal.h>
@@ -36,9 +39,93 @@ void sigint_handler(int signo) {
 }
 #endif
 
+std::wstring getline_unicode()
+{
+    std::wstring input;
+    wchar_t c;
+    size_t cursor_pos = 0;
+
+    while ((c = _getwch()) != L'\r')
+    {
+        if (c == L'\b')
+        {
+            if (!input.empty() && cursor_pos > 0)
+            {
+                cursor_pos--;
+
+                wchar_t cur_c = input[cursor_pos];
+
+                input.erase(cursor_pos, 1);
+                if (cur_c >= 0x0800 && cur_c <= 0xDBFF)
+                    std::wcout << "\b\b  \b\b";
+                else
+                    std::wcout << "\b \b";
+                for (size_t i = cursor_pos; i < input.length(); i++)
+                    std::wcout << input[i];
+                std::wcout << "  \b\b";
+                for (size_t i = cursor_pos; i < input.length(); i++)
+                    if (input[i] >= 0x0800 && input[i] <= 0xDBFF)
+                        std::wcout << "\b\b";
+                    else
+                        std::wcout << "\b";
+            }
+        }
+        else if (c == 0xE0)
+        {
+            wchar_t dir = _getwch();
+            if (dir == 75 && cursor_pos > 0)
+            {
+                cursor_pos--;
+
+                wchar_t cur_c = input[cursor_pos];
+
+                if (cur_c >= 0x0800 && cur_c <= 0xDBFF)
+                    std::wcout << "\b\b";
+                else
+                    std::wcout << "\b";
+            }
+            else if (dir == 77 && cursor_pos < input.length())
+            {
+                std::wcout << input[cursor_pos];
+                cursor_pos++;
+            }
+        }
+        else {
+            if (cursor_pos == input.length())
+            {
+                input += c;
+                std::wcout << c;
+            }
+            else
+            {
+                input.insert(cursor_pos, 1, c);
+                std::wcout << c;
+                for (size_t i = cursor_pos + 1; i < input.length(); i++)
+                    std::wcout << input[i];
+                for (size_t i = cursor_pos + 1; i < input.length(); i++)
+                    if (input[i] >= 0x0800 && input[i] <= 0xDBFF)
+                        std::wcout << "\b\b";
+                    else
+                        std::wcout << "\b";
+            }
+            cursor_pos++;
+        }
+    }
+
+    std::wcout << std::endl;
+    return input;
+}
+
+using convert_type = std::codecvt_utf8<wchar_t>;
+std::wstring_convert<convert_type, wchar_t> converter;
+
+std::string ws2s(const std::wstring& wstr)
+{
+    return converter.to_bytes(wstr);
+}
+
 int main(int argc, char ** argv) {
     gpt_params params;
-    params.model = "models/llama-7B/ggml-model.bin";
 
     if (gpt_params_parse(argc, argv, params) == false) {
         return 1;
@@ -378,19 +465,18 @@ int main(int argc, char ** argv) {
                     printf("%s", buffer.c_str());
                 }
 
-                std::string line;
+                std::wstring line;
                 bool another_line = true;
                 do {
-                    if (!std::getline(std::cin, line)) {
-                        // input stream is bad or EOF received
-                        return 0;
-                    }
+                    _setmode(_fileno(stdout), _O_U16TEXT);
+                    line = getline_unicode();
+                    _setmode(_fileno(stdout), _O_TEXT);
                     if (line.empty() || line.back() != '\\') {
                         another_line = false;
                     } else {
                         line.pop_back(); // Remove the continue character
                     }
-                    buffer += line + '\n'; // Append the line to the result
+                    buffer += ws2s(line) + '\n'; // Append the line to the result
                 } while (another_line);
 
                 // done taking input, reset color
